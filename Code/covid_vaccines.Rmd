@@ -161,7 +161,7 @@ cty_sf_vac %>% filter(Date == max(Date, na.rm = T) - 1) %>%
 
 ### Animated Vaccination Map {-}
 
-```{r animatedMap, include = FALSE}
+```{r animatedMap, results = FALSE}
 # Capitalizing on the tmap package to animate the choropleth map
 
 # Adjusting the bounding boxes for the map so that legend and credits print nicely
@@ -187,7 +187,7 @@ animatedMap = tm_shape(cty_sf_vac, bbox = bbox_new) +
   tm_credits("Data Source: The CDC's COVID-19 Vaccinations in the US by County Dataset \t")
 
 tmap_animation(animatedMap, filename = "../Figures/animatedVaccineMap.gif", fps = 2.5,
-               width = 1000, height = 700, outer.margins = 0.03)
+               width = 1000, height = 700, outer.margins = 0)
 ```
 
 
