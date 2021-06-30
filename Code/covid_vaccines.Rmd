@@ -118,7 +118,7 @@ skim(vaccines)
 
 ### Latest Vaccination Map {-}
 
-```{r latestVaccinesMap}
+```{r latestVaccinesMap, class.source = 'fold-hide'}
 # Getting the counties map from the urbnmapr package and excluding non-continental US
 counties_sf = get_urbn_map(map = "counties", sf = TRUE) %>% 
   filter(!state_name %in% c('Alaska', 'Hawaii') )
@@ -161,7 +161,7 @@ cty_sf_vac %>% filter(Date == max(Date, na.rm = T) - 1) %>%
 
 ### Animated Vaccination Map {-}
 
-```{r animatedMap, results = FALSE}
+```{r animatedMap, results = FALSE, class.source = 'fold-hide'}
 # Capitalizing on the tmap package to animate the choropleth map
 
 # Adjusting the bounding boxes for the map so that legend and credits print nicely
