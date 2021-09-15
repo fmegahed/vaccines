@@ -46,8 +46,10 @@ library(ggplot2) ; theme_set(theme_bw(base_size = 11) + theme(legend.position = 
 if(require(RColorBrewer) == FALSE) install.packages("RColorBrewer")
 scale_colour_discrete = scale_color_brewer(palette = "Dark2")
 
-# Setting the random seed
-knitr::opts_chunk$set(cache.extra = set.seed(2021))
+# Setting the random seed and chunk dependencies
+knitr::opts_chunk$set(cache.extra = set.seed(2021),
+                      autodep = TRUE) 
+knitr::dep_auto()
 
 ```
 
@@ -64,10 +66,11 @@ if(require(pacman)==FALSE) install.packages("pacman")
 if(require(devtools)==FALSE) install.packages("devtools")
 if(require(urbnmapr)==FALSE) devtools::install_github('UrbanInstitute/urbnmapr')
 
-pacman::p_load(tidyverse, magrittr, janitor, lubridate, skimr, # data analysis packages
+pacman::p_load(tidyverse, magrittr, janitor, lubridate, hms, skimr, # data analysis packages
                DT, pander, stargazer, knitr, # for nicely printed outputs
-               scales, DataExplorer, # for plots
-               urbnmapr, tmap, sf) # for maps
+               scales, DataExplorer, plotly, # for plots
+               urbnmapr, tmap, sf, # for maps
+               gifski, av) # for creating gif and videos
 ```
 
 
@@ -83,11 +86,13 @@ The CDC has made available a dataset for [COVID-19 Vaccinations in the United St
 > Overall US COVID-19 Vaccine administration data at county level. Data represents all vaccine partners including jurisdictional partner clinics, retail pharmacies, long-term care facilities, dialysis centers, Federal Emergency Management Agency and Health Resources and Services Administration partner sites, and federal entity facilities. 
 
 
-We extracted the data on `June 24, 2021 at approximately 9:00 AM EDT` using the code chunk below.
+We extracted the data using the code chunk below.
 
-```{r vaccinesRaw}
+```{r vaccinesRaw, results='asis'}
 csvLink = "https://data.cdc.gov/api/views/8xkx-amqh/rows.csv?accessType=DOWNLOAD"
 rawVaccinesData = read_csv(csvLink)
+
+vacCSVtime = Sys.time()
 
 vaccines = rawVaccinesData %>% 
   # Removing unknown (UNK) and territories/states outside of continental US
@@ -105,6 +110,12 @@ vaccines = rawVaccinesData %>%
 
 # Explicitly saving the vaccines df
 write_rds(vaccines, "../Data/vaccines.rds")
+
+# Rounding the time of data extraction to nearest minute
+paste0('The vaccines data were extracted on ',  
+      format(vacCSVtime, '%B %d, %Y'), 
+      ' at approximately ',
+     round_hms(as_hms(vacCSVtime), digits = -2), '.')
 ```
 
 ## Exploring the Data {.tabset .tabset-fade .tabset-pills}
@@ -184,9 +195,12 @@ animatedMap = tm_shape(cty_sf_vac, bbox = bbox_new) +
           title = "% of Total Population Fully Vaccinated") +
   tm_facets(along = "Date", free.coords = FALSE) +
   tm_shape(states_sf) + tm_borders(col = "black", lwd = 0.5) +
-  tm_credits("Data Source: The CDC's COVID-19 Vaccinations in the US by County Dataset \t")
+  tm_credits("Data Source: The CDC's COVID-19 Vaccinations in the US by County Dataset. Created by: Fadel M. Megahed \t")
 
-tmap_animation(animatedMap, filename = "../Figures/animatedVaccineMap.gif", fps = 2.5,
+tmap_animation(animatedMap, filename = "../Figures/animatedVaccineMap.gif", fps = 3,
+               width = 1000, height = 700, outer.margins = 0)
+
+tmap_animation(animatedMap, filename = "../Figures/animatedVaccineMap.mp4", fps = 3,
                width = 1000, height = 700, outer.margins = 0)
 ```
 
@@ -194,7 +208,36 @@ tmap_animation(animatedMap, filename = "../Figures/animatedVaccineMap.gif", fps 
 ![](../Figures/animatedVaccineMap.gif)
 
 
----
+### Sample Counties' Time-Series Plot {-}
+
+```{r tsPlot, class.source = 'fold-hide'}
+# Excluding counties with no data on max Date from being potentially plotted
+v_df %<>% filter(Date == max(Date, na.rm = T) & 
+                !is.na(Series_Complete_Pop_Pct_Disc) )
+
+
+sampleFIPs = sample(v_df$FIPS, size = 9, replace = F) %>% as.character()
+
+vaccines_sample_df = vaccines %>% 
+  # Removing observations where the data is missing
+  na.exclude(Date) %>% 
+  # filtering based on sampleFIPS
+  filter(FIPS %in% sampleFIPs) %>% 
+  # Creating a Proper Name for the Counties
+  mutate(Full_County_name = paste(Recip_County, Recip_State, sep = ", "))
+
+
+vaccines_sample_df %>% 
+  ggplot(aes(x = Date, y = Series_Complete_Pop_Pct, color = Completeness_pct, group = Full_County_name)) + 
+  facet_wrap(vars(Full_County_name)) +
+  geom_line(size = 1) + 
+  theme_bw() +
+  theme(legend.position = "top") +
+  scale_color_viridis_c(option = "viridis", direction = -1) +
+  scale_x_date(breaks = pretty_breaks(n = 6)) +
+  labs(y = '% of Total Population Fully Vaccinated',
+       color = 'Data Completeness Percentage')
+```
 
 # References
 <div id="refs"></div>
